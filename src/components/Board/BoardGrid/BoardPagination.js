@@ -15,6 +15,14 @@ const messages = defineMessages({
     id: 'cboard.components.Board.pagination.next',
     defaultMessage: 'Next page'
   },
+  first: {
+    id: 'cboard.components.Board.pagination.first',
+    defaultMessage: 'First page'
+  },
+  last: {
+    id: 'cboard.components.Board.pagination.last',
+    defaultMessage: 'Last page'
+  },
   status: {
     id: 'cboard.components.Board.pagination.status',
     defaultMessage: 'Page {page} of {pages}'
@@ -31,7 +39,11 @@ export default function BoardPagination({ page, pageCount, onChange }) {
           disabled={pageCount <= 1}
           onClick={() => onChange((page - 1 + pageCount) % pageCount)}
         >
-          <FormattedMessage {...messages.previous} />
+          <FormattedMessage
+            {...(pageCount > 1 && page === 0
+              ? messages.last
+              : messages.previous)}
+          />
         </Button>
       </Scannable>
       <Typography
@@ -53,7 +65,11 @@ export default function BoardPagination({ page, pageCount, onChange }) {
           disabled={pageCount <= 1}
           onClick={() => onChange((page + 1) % pageCount)}
         >
-          <FormattedMessage {...messages.next} />
+          <FormattedMessage
+            {...(pageCount > 1 && page === pageCount - 1
+              ? messages.first
+              : messages.next)}
+          />
         </Button>
       </Scannable>
     </Paper>

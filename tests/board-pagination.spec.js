@@ -114,7 +114,7 @@ for (const fixed of [false, true]) {
     const tiles = page.locator('#BoardTilesContainer .Tile');
     const seen = new Set();
     await expect(
-      page.getByRole('button', { name: 'Previous page', exact: true })
+      page.getByRole('button', { name: /^(Previous|Last) page$/ })
     ).toBeEnabled();
     const status = page.locator('.BoardPagination [role="status"]');
     const pageCount = Number((await status.textContent()).match(/of (\d+)/)[1]);
@@ -137,9 +137,14 @@ for (const fixed of [false, true]) {
           });
         })
       ).toBe(true);
-      const next = page.getByRole('button', { name: 'Next page', exact: true });
+      const next = page.getByRole('button', { name: /^(Next|First) page$/ });
       await expect(next).toBeEnabled();
-      await next.click();
+      await expect(next).toHaveText(
+        index === pageCount - 1 ? 'First page' : 'Next page'
+      );
+      await next.focus();
+      await page.keyboard.press('Enter');
+      await expect(next).toBeFocused();
     }
     expect(seen.size).toBe(40);
     await expect(status).toHaveText(`Page 1 of ${pageCount}`);
@@ -149,9 +154,7 @@ for (const fixed of [false, true]) {
     await expect
       .poll(() => area.evaluate((element) => element.scrollTop))
       .toBe(0);
-    await page
-      .getByRole('button', { name: 'Previous page', exact: true })
-      .click();
+    await page.getByRole('button', { name: /^(Previous|Last) page$/ }).click();
     await expect(status).toHaveText(`Page ${pageCount} of ${pageCount}`);
     if (fixed) {
       await page.keyboard.press('ArrowRight');
@@ -171,7 +174,7 @@ test('short screen fits tiles and resets capacity after resizing', async ({
   await page.setViewportSize({ width: 700, height: 320 });
   await seedBoard(page, false);
   await expect(page.locator('#BoardTilesContainer .Tile')).toHaveCount(4);
-  await page.getByRole('button', { name: 'Next page', exact: true }).click();
+  await page.getByRole('button', { name: /^(Next|First) page$/ }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole('status')).toHaveText('Page 1 of 5');
   await expect(page.locator('#BoardTilesContainer .Tile')).toHaveCount(9);
@@ -216,33 +219,38 @@ test('switch scanning selects Next page and continues scanning the new page', as
   page
 }) => {
   await seedBoard(page, true, 'pagination', true);
-  const next = page.getByRole('button', { name: 'Next page', exact: true });
-  for (let i = 0; i < 12; i++) {
-    if ((await next.getAttribute('class')).includes('scanner__focused')) break;
-    await page.keyboard.press('Tab');
+  const next = page.locator('.BoardPagination button').last();
+  const status = page.getByRole('status');
+  const bounds = await next.boundingBox();
+  for (let index = 0; index < 7; index++) {
+    for (let i = 0; i < 20; i++) {
+      if ((await next.getAttribute('class')).includes('scanner__focused'))
+        break;
+      await page.keyboard.press('Tab');
+    }
+    await expect(next).toHaveClass(/scanner__focused/);
+    await expect(next).toHaveCSS('outline-width', '4px');
+    await expect(next).toHaveText(index === 6 ? 'First page' : 'Next page');
+    expect(await next.boundingBox()).toEqual(bounds);
+    await page.keyboard.press('Enter');
+    await expect(status).toHaveText(`Page ${((index + 1) % 7) + 1} of 7`);
   }
-  await expect(next).toHaveClass(/scanner__focused/);
-  await expect(next).toHaveCSS('outline-style', 'solid');
-  await expect(next).toHaveCSS('outline-width', '4px');
-  await page.keyboard.press('Enter');
-  await expect(page.getByRole('status')).toHaveText('Page 2 of 7');
-  const previous = page.getByRole('button', {
-    name: 'Previous page',
-    exact: true
-  });
-  for (let i = 0; i < 12; i++) {
+  const previous = page.getByRole('button', { name: 'Last page', exact: true });
+  for (let i = 0; i < 20; i++) {
     await page.keyboard.press('Tab');
     if ((await previous.getAttribute('class')).includes('scanner__focused'))
       break;
   }
   await expect(previous).toHaveClass(/scanner__focused/);
+  await page.keyboard.press('Enter');
+  await expect(status).toHaveText('Page 7 of 7');
 });
 
 test('pagination uses the app primary color and readable counter in dark mode', async ({
   page
 }) => {
   await seedBoard(page, false, 'pagination', false, true);
-  const next = page.getByRole('button', { name: 'Next page', exact: true });
+  const next = page.getByRole('button', { name: /^(Next|First) page$/ });
   await expect(next).toHaveCSS('background-color', 'rgb(120, 144, 156)');
   await expect(page.locator('.BoardPagination')).toHaveCSS(
     'background-color',

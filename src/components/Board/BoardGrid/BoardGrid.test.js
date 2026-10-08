@@ -1,4 +1,5 @@
 import React from 'react';
+import { FormattedMessage } from 'react-intl';
 import { shallow } from 'enzyme';
 import BoardGrid from './BoardGrid.component';
 import Button from '@material-ui/core/Button';
@@ -97,6 +98,13 @@ it.each([0, 1, 2])(
       expect(button.prop('disabled')).toBe(false);
       expect(button.prop('color')).toBe('primary');
     });
+    const labels = wrapper.find(FormattedMessage);
+    expect(labels.at(0).prop('defaultMessage')).toBe(
+      page === 0 ? 'Last page' : 'Previous page'
+    );
+    expect(labels.at(2).prop('defaultMessage')).toBe(
+      page === 2 ? 'First page' : 'Next page'
+    );
     buttons.at(0).simulate('click');
     expect(onChange).toHaveBeenLastCalledWith((page + 2) % 3);
     buttons.at(1).simulate('click');
