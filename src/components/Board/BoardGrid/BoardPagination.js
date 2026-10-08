@@ -1,6 +1,8 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import Button from '@material-ui/core/Button';
+import Typography from '@material-ui/core/Typography';
+import Paper from '@material-ui/core/Paper';
 import { FormattedMessage, defineMessages } from 'react-intl';
 import { Scannable } from 'react-scannable';
 
@@ -21,32 +23,40 @@ const messages = defineMessages({
 
 export default function BoardPagination({ page, pageCount, onChange }) {
   return (
-    <div className="BoardPagination">
-      <Scannable disabled={page === 0}>
+    <Paper className="BoardPagination" elevation={0} square>
+      <Scannable disabled={pageCount <= 1}>
         <Button
           variant="contained"
-          disabled={page === 0}
-          onClick={() => onChange(page - 1)}
+          color="primary"
+          disabled={pageCount <= 1}
+          onClick={() => onChange((page - 1 + pageCount) % pageCount)}
         >
           <FormattedMessage {...messages.previous} />
         </Button>
       </Scannable>
-      <span role="status" aria-live="polite" aria-atomic="true">
+      <Typography
+        component="span"
+        color="textPrimary"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
         <FormattedMessage
           {...messages.status}
           values={{ page: page + 1, pages: pageCount }}
         />
-      </span>
-      <Scannable disabled={page === pageCount - 1}>
+      </Typography>
+      <Scannable disabled={pageCount <= 1}>
         <Button
           variant="contained"
-          disabled={page === pageCount - 1}
-          onClick={() => onChange(page + 1)}
+          color="primary"
+          disabled={pageCount <= 1}
+          onClick={() => onChange((page + 1) % pageCount)}
         >
           <FormattedMessage {...messages.next} />
         </Button>
       </Scannable>
-    </div>
+    </Paper>
   );
 }
 BoardPagination.propTypes = {

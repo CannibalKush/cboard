@@ -1,10 +1,14 @@
 import React from 'react';
 import { shallow } from 'enzyme';
 import BoardGrid from './BoardGrid.component';
+import Button from '@material-ui/core/Button';
+import { Scannable } from 'react-scannable';
 import BoardPagination from './BoardPagination';
 import Grid from '../../Grid';
 import FixedGrid from '../../FixedGrid';
 import ScrollButtons from '../../ScrollButtons';
+
+jest.unmock('react-intl');
 
 const props = {
   board: {
@@ -78,4 +82,38 @@ it('selects existing fixed pages without slicing or rewriting their ordering', (
   expect(wrapper.find(FixedGrid).prop('page')).toBe(2);
   expect(wrapper.find(FixedGrid).prop('items')).toBe(board.tiles);
   expect(wrapper.find(FixedGrid).prop('order')).toBe(board.grid.order);
+});
+
+it.each([0, 1, 2])(
+  'page controls wrap from page %s in both directions',
+  (page) => {
+    const onChange = jest.fn();
+    const wrapper = shallow(
+      <BoardPagination page={page} pageCount={3} onChange={onChange} />
+    );
+    const buttons = wrapper.find(Button);
+    expect(buttons).toHaveLength(2);
+    buttons.forEach((button) => {
+      expect(button.prop('disabled')).toBe(false);
+      expect(button.prop('color')).toBe('primary');
+    });
+    buttons.at(0).simulate('click');
+    expect(onChange).toHaveBeenLastCalledWith((page + 2) % 3);
+    buttons.at(1).simulate('click');
+    expect(onChange).toHaveBeenLastCalledWith((page + 1) % 3);
+    expect(
+      wrapper.find(Scannable).everyWhere((control) => !control.prop('disabled'))
+    ).toBe(true);
+  }
+);
+it('disables page controls and scanning when there is only one page', () => {
+  const wrapper = shallow(
+    <BoardPagination page={0} pageCount={1} onChange={jest.fn()} />
+  );
+  expect(
+    wrapper.find(Button).everyWhere((button) => button.prop('disabled'))
+  ).toBe(true);
+  expect(
+    wrapper.find(Scannable).everyWhere((control) => control.prop('disabled'))
+  ).toBe(true);
 });

@@ -13,7 +13,13 @@ test.beforeEach(async ({ page, baseURL }) => {
   );
 });
 
-async function seedBoard(page, fixed, mode = 'pagination', scanning = false) {
+async function seedBoard(
+  page,
+  fixed,
+  mode = 'pagination',
+  scanning = false,
+  dark = false
+) {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expect(
     page.getByRole('button', { name: 'Skip for now' })
@@ -39,7 +45,7 @@ async function seedBoard(page, fixed, mode = 'pagination', scanning = false) {
     return !!value;
   });
   await page.evaluate(
-    async ({ fixed, mode, scanning }) => {
+    async ({ fixed, mode, scanning, dark }) => {
       const db = await new Promise((resolve) => {
         const request = indexedDB.open('cboard');
         request.onsuccess = () => resolve(request.result);
@@ -52,6 +58,7 @@ async function seedBoard(page, fixed, mode = 'pagination', scanning = false) {
           const persisted = JSON.parse(request.result);
           const app = JSON.parse(persisted.app);
           app.isFirstVisit = false;
+          app.displaySettings.darkThemeActive = dark;
           app.liveHelp = Object.fromEntries(
             Object.keys(app.liveHelp).map((key) => [key, false])
           );
@@ -91,7 +98,7 @@ async function seedBoard(page, fixed, mode = 'pagination', scanning = false) {
       });
       db.close();
     },
-    { fixed, mode, scanning }
+    { fixed, mode, scanning, dark }
   );
   await page.goto('/board/root', { waitUntil: 'domcontentloaded' });
   await expect(
@@ -108,8 +115,11 @@ for (const fixed of [false, true]) {
     const seen = new Set();
     await expect(
       page.getByRole('button', { name: 'Previous page', exact: true })
-    ).toBeDisabled();
-    while (true) {
+    ).toBeEnabled();
+    const status = page.locator('.BoardPagination [role="status"]');
+    const pageCount = Number((await status.textContent()).match(/of (\d+)/)[1]);
+    for (let index = 0; index < pageCount; index++) {
+      await expect(status).toHaveText(`Page ${index + 1} of ${pageCount}`);
       for (const label of await tiles.allTextContents()) seen.add(label.trim());
       expect(
         await tiles.evaluateAll((elements) => {
@@ -128,10 +138,11 @@ for (const fixed of [false, true]) {
         })
       ).toBe(true);
       const next = page.getByRole('button', { name: 'Next page', exact: true });
-      if (await next.isDisabled()) break;
+      await expect(next).toBeEnabled();
       await next.click();
     }
     expect(seen.size).toBe(40);
+    await expect(status).toHaveText(`Page 1 of ${pageCount}`);
     const area = page.locator('#BoardTilesContainer');
     await area.hover();
     await page.mouse.wheel(0, 500);
@@ -141,6 +152,7 @@ for (const fixed of [false, true]) {
     await page
       .getByRole('button', { name: 'Previous page', exact: true })
       .click();
+    await expect(status).toHaveText(`Page ${pageCount} of ${pageCount}`);
     if (fixed) {
       await page.keyboard.press('ArrowRight');
       await expect(
@@ -224,4 +236,21 @@ test('switch scanning selects Next page and continues scanning the new page', as
       break;
   }
   await expect(previous).toHaveClass(/scanner__focused/);
+});
+
+test('pagination uses the app primary color and readable counter in dark mode', async ({
+  page
+}) => {
+  await seedBoard(page, false, 'pagination', false, true);
+  const next = page.getByRole('button', { name: 'Next page', exact: true });
+  await expect(next).toHaveCSS('background-color', 'rgb(120, 144, 156)');
+  await expect(page.locator('.BoardPagination')).toHaveCSS(
+    'background-color',
+    'rgb(66, 66, 66)'
+  );
+  await expect(page.locator('.BoardPagination [role="status"]')).toHaveCSS(
+    'color',
+    'rgb(255, 255, 255)'
+  );
+  await page.screenshot({ path: 'test-results/pagination-dark.png' });
 });
